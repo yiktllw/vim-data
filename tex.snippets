@@ -1,0 +1,826 @@
+##########
+# GLOBAL #
+##########
+
+global !p
+
+def create_table(snip):
+	rows = snip.buffer[snip.line].split('x')[0]
+	cols = snip.buffer[snip.line].split('x')[1]
+	int_val = lambda string: int(''.join(s for s in string if s.isdigit()))
+	rows = int_val(rows)
+	cols = int_val(cols)
+	offset = cols + 1
+	old_spacing = snip.buffer[snip.line][:snip.buffer[snip.line].rfind('\t') + 1]
+	snip.buffer[snip.line] = ''
+	final_str = old_spacing + "\\begin{tabular}{|" + "|".join(['$' + str(i + 1) for i in range(cols)]) + "|}\n"
+	for i in range(rows):
+		final_str += old_spacing + '\t'
+		final_str += " & ".join(['$' + str(i * cols + j + offset) for j in range(cols)])
+		final_str += " \\\\\\\n"
+	final_str += old_spacing + "\\end{tabular}\n$0"
+	snip.expand_anon(final_str)
+
+def add_row(snip):
+	row_len = int(''.join(s for s in snip.buffer[snip.line] if s.isdigit()))
+	old_spacing = snip.buffer[snip.line][:snip.buffer[snip.line].rfind('\t') + 1]
+	snip.buffer[snip.line] = ''
+	final_str = old_spacing
+	final_str += " & ".join(['$' + str(j + 1) for j in range(row_len)])
+	final_str += " \\\\\\"
+	snip.expand_anon(final_str)
+endglobal
+
+global !p
+def math():
+    return vim.eval('vimtex#syntax#in_mathzone()') == '1'
+
+def comment(): 
+    return vim.eval('vimtex#syntax#in_comment()') == '1'
+
+def env(name):
+    [x,y] = vim.eval("vimtex#env#is_inside('" + name + "')") 
+    return x != '0' and x != '0'
+
+endglobal
+
+global !p
+def create_matrix_placeholders(snip):
+	# Create anonymous snippet body
+	anon_snippet_body = ""
+
+	# Get start and end line number of expanded snippet
+	start = snip.snippet_start[0]
+	end = snip.snippet_end[0]
+
+  # Append current line into anonymous snippet
+	for i in range(start, end + 1):
+		anon_snippet_body += snip.buffer[i]
+		anon_snippet_body += "" if i == end else "\n"
+
+	# Delete expanded snippet line till second to last line
+	for i in range(start, end):
+		del snip.buffer[start]
+
+	# Empty last expanded snippet line while preserving the line
+	snip.buffer[start] = ''
+
+	# Expand anonymous snippet
+	snip.expand_anon(anon_snippet_body)
+
+def create_matrix(cols, rows, sep, start, end):
+	res = ""
+	placeholder = 1
+	for _ in range(0, int(rows)):
+		if placeholder==1:
+			res += f"${placeholder} "
+		else:
+			res += start + f"${placeholder} "
+		placeholder += 1
+		for _ in range(0, int(cols) - 1):
+			res += sep + f" ${placeholder} "
+			placeholder += 1
+		res += end
+	return res[:-1]
+endglobal
+
+context "math()"
+post_jump "create_matrix_placeholders(snip)"
+snippet '(b|p|v|V)mat(\d+),(\d+)' "LaTeX Matrix" br
+\begin{`!p snip.rv = match.group(1)`matrix}
+`!p snip.rv = create_matrix(int(match.group(3)),int(match.group(2)), "&", "\t", "\\\\\\\\\n") `
+\end{`!p if not snip.c: snip.rv = match.group(1)`matrix}
+$0
+endsnippet
+
+context "math()"
+post_jump "create_matrix_placeholders(snip)"
+snippet 'arr(\d+),(\d+)' "LaTeX array" br
+\begin{array}{`!p
+orient = ""
+for _ in range(0, int(match.group(1))): orient += "l"
+snip.rv = orient`}
+`!p
+if not snip.c: snip.rv = create_matrix(match.group(1), match.group(2), "&", "\t", "\\\\\\\\\n")
+`
+\end{array}
+$0
+endsnippet
+#######################
+########My Snips#######
+#######################
+
+# 签名
+snippet vsign "yiktllw vim sign" bi
+########################
+###### llw & yikt ######
+########################
+endsnippet
+
+snippet lsign "yiktllw latex sign" bi
+%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% llw & yikt %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%
+endsnippet
+
+
+# 分式
+context "math()"
+snippet // "Fraction" wiA
+\frac{ $1 }{ $2 } $0
+endsnippet
+
+# 自动分式 
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)/" "autoFraction" wirA
+\frac{`!p snip.rv=match.group(1)`}{ $1 } $0
+endsnippet
+
+# 自动下标 
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)_([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)" "autosubscript" wr
+`!p snip.rv=match.group(1)`_{`!p snip.rv=match.group(2)`} $0
+endsnippet
+
+# 电动力学k
+context "math()"
+snippet elk "电动力学k" wiA
+\frac{${1:1}}{4\pi\epsilon_0 $2}$0
+endsnippet
+
+# 行内公式
+snippet eql "Inline Math" wiA
+\\( ${1} \\) $0
+endsnippet
+
+# 行间公式，带编号
+priority 99
+snippet eqt "Display Math" wiA
+\begin{equation}
+	${1:${VISUAL}}
+\end{equation}
+$0
+endsnippet
+
+# 添加标签
+snippet label "添加编号" b
+\label{$1}$0
+endsnippet
+
+# 行间公式，不带编号
+priority 99
+snippet eqs "Display Math" iAw
+\begin{equation*}
+	${1:${VISUAL}}
+\end{equation*}
+$0
+endsnippet
+
+# 希腊字母简写
+context "math()"
+snippet vap "varphi" iA
+\varphi
+endsnippet
+
+# 求和
+context "math()"
+snippet sum "sum" iA
+\sum_{$1}^{$2}$0
+endsnippet
+
+context "math()"
+snippet vae "varepsilon" iA
+\varepsilon
+endsnippet
+
+context "math()"
+snippet eps "epsilon" iA
+\epsilon
+endsnippet
+
+context "math()"
+snippet -> "rightarrow" iA
+\rightarrow 
+endsnippet
+
+context "math()"
+snippet --> "longrightarrow" iA
+\longrightarrow 
+endsnippet
+
+# 盒子
+snippet box "Box"
+`!p snip.rv = '┌' + '─' * (len(t[1]) + 2) + '┐'`
+│ $1 │
+`!p snip.rv = '└' + '─' * (len(t[1]) + 2) + '┘'`
+$0
+endsnippet 
+
+snippet mint "积分" b
+\int_{$1}^{$2} $0
+endsnippet
+
+snippet intinf "无穷积分" b
+\int_{-\infty}{\infty} $0
+endsnippet
+
+priority 99
+snippet .. "cdot" i
+\cdot 
+endsnippet
+
+priority 100
+snippet ... "cdots" iA
+\cdots
+endsnippet
+
+context "math()"
+snippet star "上标星号" iA
+^{*}$0
+endsnippet
+
+# 自动向量(黑体)
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)vec" "vec" riA
+\mathbf{`!p snip.rv=match.group(1)`}$0
+endsnippet
+
+# 自动黑板粗体
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)mbb" "mbb" riA
+\mathbb{`!p snip.rv=match.group(1)`}$0
+endsnippet
+
+# 微分算子
+context "math()"
+snippet dd "微分算子" i
+\frac{d $1}{d ${2:t}} $0
+endsnippet
+
+# 二阶微分算子
+context "math()"
+snippet dd2 "微分算子" i
+\frac{d^2 $1}{d ${2:x}^2} $0
+endsnippet
+
+# 偏微分算子
+context "math()"
+snippet pp "偏微分算子" i
+\frac{\partial $1}{\partial ${2:t}} $0
+endsnippet
+
+# 二阶偏微分算子
+context "math()"
+snippet pp20 "偏微分算子" i
+\frac{\partial^2 $1}{\partial ${2:x}^2} $0
+endsnippet
+
+# 二阶偏微分算子
+context "math()"
+snippet pp21 "偏微分算子" i
+\frac{\partial^2 $1}{\partial ${2:x} \partial ${3:y}} $0
+endsnippet
+
+
+
+# 偏导
+context "math()"
+snippet pt "偏导" i
+\partial 
+endsnippet
+
+context "math()"
+snippet "(?<!\\)(dagger)" "Latex自动命令LatexAutoCommand" irA
+\\`!p snip.rv = match.group(1)`
+endsnippet
+###############
+# ENVIRONMENT #
+###############
+
+snippet beg "begin{} / end{}" w
+\begin{$1}
+	${0:${VISUAL}}
+\end{$1}
+endsnippet
+
+context "math()"
+snippet sr "^2" iA
+^2
+endsnippet
+
+snippet "bar" "bar" ri
+\overline{$1}$0
+endsnippet
+
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)bar" "bar" ri
+\overline{`!p snip.rv=match.group(1)`$1}$0
+endsnippet
+
+priority 99
+context "math()"
+snippet "hat" "hat" riA
+\hat{$1}$0
+endsnippet
+
+#priority 100
+#context "math()"
+#snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)hat" "hat" riA
+#\hat{`!p snip.rv=match.group(1)`}$0
+#endsnippet
+
+context "math()"
+snippet "([a-zA-Z0-9\{\}\_\^\\\(\)\*\']+)dot" "dot" ri
+\dot{`!p snip.rv=match.group(1)`}$0
+endsnippet
+
+snippet fig "Figure environment" bi
+\begin{figure}[${1:H}]
+	\centering
+	${2:\includegraphics[width=0.8\linewidth]{$3}}
+	\caption{${4:$3}}
+	\label{fig:${5:${3/\W+/-/g}}}
+\end{figure}
+endsnippet
+
+snippet "\bbege" "Enumerate" brA
+\begin{enumerate}
+	\item ${0:${VISUAL}}
+\end{enumerate}
+endsnippet
+
+snippet "\bbegca" "cases" brA
+\begin{cases}
+	${0:${VISUAL}}
+\end{cases}
+endsnippet
+
+snippet "\bbegal" "align" brA
+\begin{align}
+	${0:${VISUAL}}
+\end{align}
+endsnippet
+
+########
+# MATH #
+########
+
+context "math()"
+snippet in "in " w
+\in 
+endsnippet
+
+context "math()"
+snippet ss "Super Script" iA
+^{$1}$0
+endsnippet
+
+context "math()"
+snippet _ "subscript" i
+_{$1}$0
+endsnippet
+
+snippet sqr "Square Root" wi
+\sqrt{${1:${VISUAL}}}$0
+endsnippet
+
+snippet nsqr "... Root" wi
+\sqrt[$1]{${2:${VISUAL}}}$0
+endsnippet
+
+snippet tbf "Bold" wi
+\bf{${1:${VISUAL}}}$0
+endsnippet
+
+snippet tit "Italic" wi
+\it{${1:${VISUAL}}}$0
+endsnippet
+
+snippet tun "Underline" wi
+\un{${1:${VISUAL}}}$0
+endsnippet
+
+snippet rm "Text" wi
+\rm{${1:${VISUAL}}}$0
+endsnippet
+
+snippet item "Item" wi
+\item ${0:${VISUAL}}
+endsnippet
+
+context "math()"
+snippet sbk "Left( right)" iA
+\left( ${1:${VISUAL}} \right) $0
+endsnippet
+
+context "math()"
+snippet abs "left| right|" iA
+\left| ${1:${VISUAL}} \right| $0
+endsnippet
+
+context "math()"
+snippet bbk "left\{ right\}" iA
+\left\\{ ${1:${VISUAL}} \right\\} $0
+endsnippet
+
+context "math()"
+snippet mbk "left[ right]" iA
+\left[ ${1:${VISUAL}} \right] $0
+endsnippet
+
+snippet conj "conjugate" w
+\overline{$1}$0
+endsnippet
+
+context "math()"
+snippet lim "limit" wi
+\lim_{ ${1:n} \to ${2:\infty}} 
+endsnippet
+
+context "math()"
+snippet prod "product" wi
+\prod_{${1:n=${2:1}}}^{${3:\infty}} ${4:${VISUAL}} $0
+endsnippet
+
+context "math()"
+snippet oo "\infty" wi
+\infty 
+endsnippet
+
+context "math()"
+snippet => "Implies" w
+\implies 
+endsnippet
+
+context "math()"
+snippet =< "Implied by" w
+\impliedby 
+endsnippet
+
+context "math()"
+snippet == "Equiv" wiA
+\equiv 
+endsnippet
+
+context "math()"
+snippet "(>=|neq)" "Not Equal" rwiA
+\neq 
+endsnippet
+
+context "math()"
+snippet "(>=|leq)" "leq" rwiA
+\leqslant 
+endsnippet
+
+context "math()"
+snippet "(>=|geq)" "geq" rwiA
+\geqslant 
+endsnippet
+
+context "math()"
+snippet xx "cross" Awi
+\times 
+endsnippet
+
+context "math()"
+snippet '(?<!\\)(sin|cos|arccot|cot|csc)' "三角函数" riA
+\\`!p snip.rv = match.group(1)` 
+endsnippet
+
+context "math()"
+snippet "((\d|\w)+)invs" "inverse" Awr
+`!p snip.rv = match.group(1)`^{-1}
+endsnippet
+
+#####################
+#  TABLES & MATRIX  #
+#####################
+
+pre_expand "create_table(snip)" 
+snippet "gentbl(\d+)x(\d+)" "Generate table of *width* by *height*" Aw
+endsnippet
+
+pre_expand "add_row(snip)"
+snippet "tr(\d+)" "Add table row of dimension ..." r
+endsnippet
+
+
+###########
+# POSTFIX #
+###########
+
+#context "math()"
+#snippet "\<(.*?)\|" "bra" riA
+#\bra{`!p snip.rv = match.group(1).replace('q', f'\psi').replace('f', f'\phi')`}
+#endsnippet
+
+priority 99
+context "math()"
+snippet "\<([a-zA-Z0-9\{\}\_\^\\\(\)\*\'\,]+)\|" "bra" riA
+\bra{`!p snip.rv = match.group(1)`}
+endsnippet
+
+context "math()"
+snippet "\|([a-zA-Z0-9\{\}\_\^\\\(\)\*\'\,]+)\>" "ket" riA
+\ket{`!p snip.rv = match.group(1)`}
+endsnippet
+
+priority 100
+context "math()"
+snippet "\\bra{([a-zA-Z0-9\{\}\_\^\\\(\)\*\'\,]+)}([a-zA-Z0-9\{\}\_\^\\\(\)\*\'\,]+)\>" "braket" Ari
+\braket{`!p snip.rv = match.group(1)`|`!p snip.rv = match.group(2)`}
+endsnippet
+
+
+#############
+# PRE-AMBLE #
+#############
+
+snippet usepackage "usepackage - removes square braces if options removed" b
+\usepackage`!p snip.rv='[' if t[1] else ""`${1:options}`!p snip.rv = ']' if t[1] else ""`{${2:package}}$0
+endsnippet
+
+
+############
+# SECTIONS #
+############
+
+snippet chap "Chapter" wi
+\chapter{$1${VISUAL}}
+endsnippet
+
+snippet sec "Section" wi
+\section{$1${VISUAL}}
+endsnippet
+
+snippet sec* "Section*" wi
+\section*{$1${VISUAL}}
+endsnippet
+
+snippet sub "Subsection" wi
+\subsection{$1${VISUAL}}
+endsnippet
+
+snippet sub* "Subsection*" wi
+\subsection*{$1${VISUAL}}
+endsnippet
+
+snippet subsub "Subsection" wi
+\subsubsection{$1${VISUAL}}
+endsnippet
+
+snippet subsub* "Subsubsection" wi
+\subsubsection*{$1${VISUAL}}
+endsnippet
+
+snippet par "Paragraph" wi
+\paragraph{$1${VISUAL}}
+endsnippet
+
+snippet par* "Paragraph*" wi
+\paragraph*{$1${VISUAL}}
+endsnippet
+
+snippet subpar "Sub Paragraph" wi
+\subparagraph{$1${VISUAL}}
+endsnippet
+
+snippet subpar* "Sub Paragraph*" wi
+\subparagraph*{$1${VISUAL}}
+endsnippet
+
+snippet chapl "Chapter with label" wi
+\chapter{$1${VISUAL}}
+\label{cha:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet secl "Section with label" wi
+\section{$1${VISUAL}}
+\label{sec:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet sec*l "Section* with label" wi
+\section*{$1${VISUAL}}
+\label{sec:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet subl "Subsection with label" wi
+\subsection{$1${VISUAL}}
+\label{sub:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet sub*l "Subsection* with label" wi
+\subsection*{$1${VISUAL}}
+\label{sub:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet subsubl "Subsection with label" wi
+\subsubsection{$1${VISUAL}}
+\label{ssub:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet subsub*l "Subsubsection with label" wi
+\subsubsection*{$1${VISUAL}}
+\label{ssub:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet parl "Paragraph with label" wi
+\paragraph{$1${VISUAL}}
+\label{par:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet par*l "Paragraph* with label" wi
+\paragraph*{$1${VISUAL}}
+\label{par:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet subparl "Sub Paragraph with label" wi
+\subparagraph{$1${VISUAL}}
+\label{subp:${2:${1/\W+/-/g}}}
+endsnippet
+
+snippet subpar*l "Sub Paragraph* with label" wi
+\subparagraph*{$1${VISUAL}}
+\label{subp:${2:${1/\W+/-/g}}}
+endsnippet
+
+# 自动下标
+context "math()"
+snippet "(\b[A-Za-z]|\\mu|\\Mu|\\alpha|\\Alpha|\\sigma|\\Sigma|\\rho|\\Rho|\\beta|\\Beta|\\gamma|\\Gamma|\\delta|\\Delta|\\pi|\\Pi|\\zeta|\\Zeta|\\eta|\\Eta|\\epsilon|\\Epsilon|\\varepsilon|\\Varepsilon|\\theta|\\Theta|\\iota|\\Iota|\\kappa|\\Kappa|\\vartheta|\\Vartheta|\\lambda|\\Lambda|\\nu|\\Nu|\\tau|\\Tau|\\upsilon|\\Upsilon|\\varphi|\\Varphi|\\chi|\\Chi|\\Omega|\\omega|\\xi|\\Xi|\\psi|\\Psi|\\hbar)(\d)" "auto subscript" riA
+`!p snip.rv = match.group(1)`_{`!p snip.rv = match.group(2)`} $0
+endsnippet
+
+context "math()"
+snippet "(\b[A-Za-z]|\\mu|\\Mu|\\alpha|\\Alpha|\\sigma|\\Sigma|\\rho|\\Rho|\\beta|\\Beta|\\gamma|\\Gamma|\\delta|\\Delta|\\pi|\\Pi|\\zeta|\\Zeta|\\eta|\\Eta|\\epsilon|\\Epsilon|\\varepsilon|\\Varepsilon|\\theta|\\Theta|\\iota|\\Iota|\\kappa|\\Kappa|\\vartheta|\\Vartheta|\\lambda|\\Lambda|\\nu|\\Nu|\\tau|\\Tau|\\upsilon|\\Upsilon|\\varphi|\\Varphi|\\chi|\\Chi|\\Omega|\\omega|\\xi|\\Xi|\\psi|\\Psi|\\hbar)_\{(\d)\}(\d)" "auto subscript2" irA
+`!p snip.rv = match.group(1)`_{`!p snip.rv = match.group(2)``!p snip.rv = match.group(3)`} $0
+endsnippet
+
+# 希腊字母自动转换
+#context "math()"
+#snippet "(?<!\\)(nabla|mu|Mu|alpha|Alpha|sigma|Sigma|rho|Rho|beta|Beta|gamma|Gamma|delta|Delat|pi|Pi|zeta|Zeta|eta|Eta|epsilon|Epsilon|varepsilon|Varepsilon|theta|Theta|iota|Iota|kappa|Kappa|vartheta|Vartheta|lambda|Lambda|nu|Nu|tau|Tau|upsilon|Upsilon|varphi|Varphi|chi|Chi|Omega|omega|xi|Xi|psi|Psi|hbar)" "Greek letters1" riA
+#\\`!p snip.rv=match.group(1)`$0
+#endsnippet
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 笔记本模板
+snippet useNotebook "笔记本模板" b
+%
+\ifdefined\XeTeXversion\else\ifdefined\pdftexversion\else
+\newcount\pdftexversion\pdftexversion=140
+\def\pdftexrevision{18}
+\fi\fi
+\documentclass[11pt,a4paper]{ctexbook}
+\usepackage{geometry}
+\geometry{left=2.0cm,right=2.0cm,top=2.5cm,bottom=2.5cm}
+\usepackage{fontsize}
+\usepackage{fancyhdr}
+\usepackage{float}
+
+$1
+
+$2
+
+$3
+
+\CTEXsetup[format={\Large\bfseries}]{section}
+\usepackage{makeidx}
+\makeindex
+
+\title{\Huge\bf $4笔记本}
+\author{${5:唐小川}}
+\date{\today}
+\begin{document}
+\maketitle
+\tableofcontents
+
+$6
+
+
+\end{document}
+endsnippet
+
+# 作业模板
+snippet useHomework "作业模板" b
+%
+\ifdefined\XeTeXversion\else\ifdefined\pdftexversion\else
+\newcount\pdftexversion\pdftexversion=140
+\def\pdftexrevision{18}
+\fi\fi
+\documentclass[11pt,a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=2.0cm,right=2.0cm,top=2.5cm,bottom=2.5cm}
+\usepackage{fontsize}
+\usepackage{fancyhdr}
+\usepackage{float}
+
+$1
+
+$2
+
+$3
+
+\CTEXsetup[format={\Large\bfseries}]{section}
+\usepackage{makeidx}
+\makeindex
+
+\title{$4作业}
+\author{${5:陈曾航2021K8009907013}}
+\date{\today}
+\begin{document}
+\maketitle
+\tableofcontents
+
+$6
+
+
+\end{document}
+endsnippet
+
+# 数学环境
+snippet useMath "数学环境" b
+\usepackage{amsmath,amsfonts,graphicx,subfigure,amssymb,bm,amsthm}
+\usepackage{mathrsfs}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{braket}
+\usepackage{cases}
+\usepackage{esint}
+\usepackage[mathrm=sym,warnings-off={mathtools-colon,mathtools-overbracket}]{unicode-math}
+endsnippet
+
+# 超引用
+snippet useHyperRef "超引用" b
+\usepackage{hyperref}
+\hypersetup{
+	hidelinks,
+	colorlinks=true,
+	allcolors=red,
+	pdfstartview=fit,
+	breaklinks=true,
+}
+endsnippet
+
+# 颜色环境
+snippet useColor "颜色环境" b
+\usepackage{xcolor}
+\definecolor{mygrey}{rgb}{0.5,0.5,0.5}
+\definecolor{mybrown}{rgb}{0.5,0.5,0}
+\definecolor{myred}{rgb}{0.5,0,0}
+\definecolor{mygreen}{rgb}{0,0.5,0}
+\definecolor{myblue}{rgb}{0,0,0.8}
+endsnippet
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

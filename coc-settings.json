@@ -1,0 +1,7 @@
+{
+	"coc.source.around.enable": false,
+	"coc.preferences.extensionUpdateCheck": "daily",
+	"codeLens.enable":true,
+	"list.previousKeymap": "<up>",
+	"list.nextKeymap": "<down>",
+}	
